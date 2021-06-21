@@ -22,6 +22,8 @@ def parseArgs():
                                              "  lcof         -- 剑指Offer ]")
     parser.add_argument("-d", "--debug", default=False, action="store_true",
                         help="debug mode, querying the unecessary content, and may be slower")
+    parser.add_argument("-f", "--force", default=False, action="store_true",
+                        help="force mode, force cover grasped problems and submissions")
     args = parser.parse_args()
     return args
 
@@ -40,7 +42,7 @@ def main():
 
     save_path = os.path.join(os.getcwd(), "problems")
 
-    lc_client = LeetCodeClient(username, password, save_path, debug_mode=args.debug)
+    lc_client = LeetCodeClient(username, password, save_path, args=args)
 
     ret = lc_client.login(retry_time_interval=5.0)
     if not ret:

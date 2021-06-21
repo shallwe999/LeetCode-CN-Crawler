@@ -5,6 +5,7 @@ import re
 import sys
 import time
 import json
+import glob
 import requests
 from tqdm import tqdm
 
@@ -14,11 +15,12 @@ class LeetCodeClient:
     """
     LeetCode Client
     """ 
-    def __init__(self, username, password, save_path, debug_mode=False):
+    def __init__(self, username, password, save_path, args):
         self.__username = username
         self.__password = password
         self.__save_path = save_path
-        self.__debug_mode = debug_mode
+        self.__debug_mode = args.debug
+        self.__force_mode = args.force
 
         self.__client = requests.session()
         self.__client.encoding = "utf-8"
@@ -109,9 +111,18 @@ class LeetCodeClient:
         if self.__debug_mode:  # not use tqdm
             idx = 1
             for problem_info in self.__problems_info:
+                # Skip grasping this problem if found
+                if not self.__force_mode:
+                    file_path = os.path.join(self.__save_path, self.__book_name, problem_info["qid"])
+                    check_existed = len(glob.glob("{:s} - *".format(file_path)))
+                    if check_existed != 0:
+                        print(" >> Problem [{:s}] has been grasped, skip it.".format(problem_info["title"]))
+                        continue
+
                 print(" >> Processing problem [{:s} - {:s}]. ({:d}/{:d})"
                         .format(problem_info["qid"], problem_info["title"], idx, length))
                 idx = idx + 1
+
                 status_ok = self.__getLatestACSubmission(problem_info)
                 if not status_ok:
                     print(" >> Problem [{:s}] grasp failed, skip it.".format(problem_info["title"]))
@@ -122,9 +133,18 @@ class LeetCodeClient:
             with tqdm(total=len(self.__problems_info), ncols=80, desc=tqdm_desc, 
                     bar_format=" >> {l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]") as pbar:
                 for problem_info in self.__problems_info:
+                    # Skip grasping this problem if found
+                    if not self.__force_mode:
+                        file_path = os.path.join(self.__save_path, self.__book_name, problem_info["qid"])
+                        check_existed = len(glob.glob("{:s} - *".format(file_path)))
+                        if check_existed != 0:
+                            pbar.update(1)
+                            continue
+
                     status_ok = self.__getLatestACSubmission(problem_info)
                     if not status_ok:
                         print(" >> Problem [{:s}] grasp failed, skip it.".format(problem_info["title"]))
+                        pbar.update(1)
                         continue
                     self.__getProblemDiscription(problem_info)
                     pbar.update(1)
