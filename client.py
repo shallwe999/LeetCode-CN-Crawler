@@ -25,6 +25,7 @@ class LeetCodeClient:
         self.__client = requests.session()
         self.__client.encoding = "utf-8"
         self.__problems_info = []  # {qid, title, url}
+        self.__account_name = None
         self.__signed_in = False
         self.__book_name = ""
 
@@ -47,11 +48,6 @@ class LeetCodeClient:
         Web Client Login
         """
         retry_times = self.__login_retry_times
-        headers = {
-            "Connection": "keep-alive",
-            "Content-Type": "application/json",
-            "Referer": self.__sign_in_url
-        }
         
         while retry_times > 0:
             try:
@@ -59,28 +55,41 @@ class LeetCodeClient:
                 login_data = {'login': self.__username, 'password': self.__password}            
                 login_response = self.__client.post(self.__sign_in_url, data=login_data, headers=dict(Referer=self.__sign_in_url))
 
-                # Test a list website to check if signed in.
-                # If not signed in, the list website will be redirected to login website.
-                check_signed_in_response = self.__client.get(self.__list_url, verify=False)
-                idx = check_signed_in_response.url.find("login")
-                signed_in = (idx == -1)
+                # Get account name, check if signed in.
+                # If not signed in, account name will not be received.
+                account_name_headers = {
+                    "Connection": "keep-alive",
+                    "Content-Type": "application/json",
+                    "Referer": self.__query_url
+                }
+                account_name_param = {
+                    "operationName": "userStatus",
+                    "variables": {},
+                    "query": "query userStatus {\n  userStatus {\n    userSlug\n  }\n}\n"
+                }
 
+                param_json = json.dumps(account_name_param).encode("utf-8")
+                account_name_response = self.__client.post(self.__query_url, data=param_json, headers=account_name_headers)
+                self.__account_name = account_name_response.json()["data"]["userStatus"]["userSlug"]
+                self.__signed_in = (self.__account_name != None)
+
+                # Check results
                 if not login_response.ok:
-                    print(" >> Login failed. Not OK response from server. Retry in {:d} seconds...")
+                    print(" >> Login failed. Not OK response from server. Retry in {:.1f} seconds...")
                     retry_times = retry_times - 1
                     time.sleep(retry_time_interval)
-                elif not signed_in:
+                elif not self.__signed_in:
                     print(" >> Login failed. Wrong password.")
                     return False
                 else:
                     self.__signed_in = True
-                    print(" >> Login successfully.\n >> Welcome, {:s}!".format(self.__username))
+                    print(" >> Login successfully.\n >> Welcome, {:s}!".format(self.__account_name))
                     return True
 
             except:
-                print(" >> Login failed. Connection failed. Retry in {:d} seconds...".format(retry_time))
+                print(" >> Login failed. Connection failed. Retry in {:.1f} seconds...".format(retry_time_interval))
                 retry_times = retry_times - 1
-                time.sleep(retry_time)
+                time.sleep(retry_time_interval)
         return False
 
 
@@ -206,7 +215,7 @@ class LeetCodeClient:
         }
         param = {
             "operationName": "submissions",
-            "variables": {"offset":0, "limit":40, "lastKey":"null", "questionSlug": problem_info["url"]},
+            "variables": {"offset":0, "limit":50, "lastKey":"null", "questionSlug": problem_info["url"]},
             "query": "query submissions($offset: Int!, $limit: Int!, $lastKey: String, $questionSlug: String!, $markedOnly: Boolean, $lang: String) {\n  submissionList(offset: $offset, limit: $limit, lastKey: $lastKey, questionSlug: $questionSlug, markedOnly: $markedOnly, lang: $lang) {\n    lastKey\n    submissions {\n      id\n      statusDisplay\n      lang\n      timestamp\n      url\n    }\n  }\n}\n"
         }
         if self.__debug_mode:  # grasp all the content in debug mode
@@ -214,11 +223,11 @@ class LeetCodeClient:
 
         param_json = json.dumps(param).encode("utf-8")
         response = self.__client.post(self.__query_url, data=param_json, headers=headers)
-        submission_details = response.json()["data"]["submissionList"]['submissions']
+        submission_details = response.json()["data"]["submissionList"]["submissions"]
 
         submission_idx = -1
         for idx in range(len(submission_details)):  # default have time order
-            if submission_details[idx]['statusDisplay'] == "Accepted":  # AC
+            if submission_details[idx]["statusDisplay"] == "Accepted":  # AC
                 submission_idx = idx
                 break
         if submission_idx == -1:
@@ -227,9 +236,9 @@ class LeetCodeClient:
 
 
         # get latest submission id, then we can get the code
-        lang = submission_details[submission_idx]['lang']
-        latest_submission_id = submission_details[submission_idx]['id']
-        latest_submission_url = submission_details[submission_idx]['url'][1:]  # remove '/'
+        lang = submission_details[submission_idx]["lang"]
+        latest_submission_id = submission_details[submission_idx]["id"]
+        latest_submission_url = submission_details[submission_idx]["url"][1:]  # remove '/'
         latest_submission_url = self.__leetcode_url + latest_submission_url
         headers = {
             "Connection": "keep-alive",

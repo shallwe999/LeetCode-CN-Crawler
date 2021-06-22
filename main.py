@@ -29,6 +29,10 @@ def parseArgs():
 
 
 def main():
+    print("  ====================== ")
+    print(" | LeetCode CN Crawler  |")
+    print("  ====================== ")
+
     args = parseArgs()
 
     username = input(" >> Please input your username: ")
