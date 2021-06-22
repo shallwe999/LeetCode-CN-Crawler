@@ -46,7 +46,7 @@ def main():
 
     save_path = os.path.join(os.getcwd(), "problems")
 
-    lc_client = LeetCodeClient(username, password, save_path, args=args)
+    lc_client = LeetCodeClient(username, password, save_path, args)
 
     ret = lc_client.login(retry_time_interval=5.0)
     if not ret:
