@@ -24,8 +24,8 @@ class LeetCodeClient:
 
         self.__client = requests.session()
         self.__client.encoding = "utf-8"
-        self.__problems_info = []  # {qid, title, url, grasped, 
-                                   # translated_title(if grasped), problem_file_name(if grasped), code_file_name(if grasped)}
+        self.__problems_info = []  # { qid, title, url, grasped, 
+                                   #   translated_title(if grasped) }
         self.__account_name = None
         self.__signed_in = False
         self.__book_name = ""
@@ -36,7 +36,6 @@ class LeetCodeClient:
         self.__leetcode_url = "https://leetcode-cn.com/"
         self.__query_url = self.__leetcode_url + "graphql/"
         self.__sign_in_url = self.__leetcode_url + "accounts/login/"
-        self.__list_url = self.__leetcode_url + "list/"
         self.__problem_list_url = self.__leetcode_url + "api/problems/"
         self.__problem_url = self.__leetcode_url + "problems/"
         self.__submissions_url = self.__leetcode_url + "submissions/"
@@ -53,18 +52,15 @@ class LeetCodeClient:
         while retry_times > 0:
             try:
                 # Login
-                login_data = {'login': self.__username, 'password': self.__password}            
+                login_data = {"login": self.__username, "password": self.__password}            
                 login_response = self.__client.post(self.__sign_in_url, data=login_data, headers=dict(Referer=self.__sign_in_url))
 
                 # Get account name, check if signed in.
                 # If not signed in, account name will not be received.
-                account_name_headers = self.__postHTTPJSONHeader(referer=self.__query_url)
+                account_name_headers = self.__postHTTPJSONHeader(Referer=self.__query_url)
 
-                account_name_param = {
-                    "operationName": "userStatus",
-                    "variables": {},
-                    "query": "query userStatus {\n  userStatus {\n    userSlug\n  }\n}\n"
-                }
+                json_query = "query userStatus {\n  userStatus {\n    userSlug\n  }\n}\n"
+                account_name_param = self.__postHTTPJSONParam("userStatus", {}, json_query)
 
                 param_json = json.dumps(account_name_param).encode("utf-8")
                 account_name_response = self.__client.post(self.__query_url, data=param_json, headers=account_name_headers)
@@ -80,7 +76,6 @@ class LeetCodeClient:
                     print(" >> Login failed. Wrong password.")
                     return False
                 else:
-                    self.__signed_in = True
                     print(" >> Login successfully.\n >> Welcome, {:s}!".format(self.__account_name))
                     return True
 
@@ -191,15 +186,12 @@ class LeetCodeClient:
 
     def __getProblemDiscription(self, problem_info):
         this_problem_url = self.__problem_url + problem_info["url"] + "/"
-        headers = self.__postHTTPJSONHeader(referer=this_problem_url)
+        headers = self.__postHTTPJSONHeader(Referer=this_problem_url)
 
-        param = {
-            "operationName": "questionData",
-            "variables": {"titleSlug": problem_info["url"]},
-            "query": "query questionData($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    categoryTitle\n    title\n    titleSlug\n    translatedTitle\n    translatedContent\n    difficulty\n    status\n  }\n}\n"
-        }
+        json_query = "query questionData($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    categoryTitle\n    title\n    titleSlug\n    translatedTitle\n    translatedContent\n    difficulty\n    status\n  }\n}\n"
         if self.__debug_mode:  # grasp all the content in debug mode
-            param["query"] = "query questionData($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    categoryTitle\n    boundTopicId\n    title\n    titleSlug\n    content\n    translatedTitle\n    translatedContent\n    isPaidOnly\n    difficulty\n    likes\n    dislikes\n    isLiked\n    similarQuestions\n    contributors {\n      username\n      profileUrl\n      avatarUrl\n      __typename\n    }\n    langToValidPlayground\n    topicTags {\n      name\n      slug\n      translatedName\n      __typename\n    }\n    companyTagStats\n    codeSnippets {\n      lang\n      langSlug\n      code\n      __typename\n    }\n    stats\n    hints\n    solution {\n      id\n      canSeeDetail\n      __typename\n    }\n    status\n    sampleTestCase\n    metaData\n    judgerAvailable\n    judgeType\n    mysqlSchemas\n    enableRunCode\n    envInfo\n    book {\n      id\n      bookName\n      pressName\n      source\n      shortDescription\n      fullDescription\n      bookImgUrl\n      pressImgUrl\n      productUrl\n      __typename\n    }\n    isSubscribed\n    isDailyQuestion\n    dailyRecordStatus\n    editorType\n    ugcQuestionId\n    style\n    exampleTestcases\n    __typename\n  }\n}\n"
+            json_query = "query questionData($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    categoryTitle\n    boundTopicId\n    title\n    titleSlug\n    content\n    translatedTitle\n    translatedContent\n    isPaidOnly\n    difficulty\n    likes\n    dislikes\n    isLiked\n    similarQuestions\n    contributors {\n      username\n      profileUrl\n      avatarUrl\n      __typename\n    }\n    langToValidPlayground\n    topicTags {\n      name\n      slug\n      translatedName\n      __typename\n    }\n    companyTagStats\n    codeSnippets {\n      lang\n      langSlug\n      code\n      __typename\n    }\n    stats\n    hints\n    solution {\n      id\n      canSeeDetail\n      __typename\n    }\n    status\n    sampleTestCase\n    metaData\n    judgerAvailable\n    judgeType\n    mysqlSchemas\n    enableRunCode\n    envInfo\n    book {\n      id\n      bookName\n      pressName\n      source\n      shortDescription\n      fullDescription\n      bookImgUrl\n      pressImgUrl\n      productUrl\n      __typename\n    }\n    isSubscribed\n    isDailyQuestion\n    dailyRecordStatus\n    editorType\n    ugcQuestionId\n    style\n    exampleTestcases\n    __typename\n  }\n}\n"
+        param = self.__postHTTPJSONParam("questionData", {"titleSlug": problem_info["url"]}, json_query)
 
         param_json = json.dumps(param).encode("utf-8")
         response = self.__client.post(self.__query_url, data=param_json, headers=headers)
@@ -219,15 +211,12 @@ class LeetCodeClient:
 
     def __getLatestACSubmission(self, problem_info):
         this_problem_url = self.__problem_url + problem_info["url"] + "submissions/"
-        headers = self.__postHTTPJSONHeader(referer=this_problem_url)
+        headers = self.__postHTTPJSONHeader(Referer=this_problem_url)
 
-        param = {
-            "operationName": "submissions",
-            "variables": {"offset":0, "limit":50, "lastKey":"null", "questionSlug": problem_info["url"]},
-            "query": "query submissions($offset: Int!, $limit: Int!, $lastKey: String, $questionSlug: String!, $markedOnly: Boolean, $lang: String) {\n  submissionList(offset: $offset, limit: $limit, lastKey: $lastKey, questionSlug: $questionSlug, markedOnly: $markedOnly, lang: $lang) {\n    lastKey\n    submissions {\n      id\n      statusDisplay\n      lang\n      timestamp\n      url\n    }\n  }\n}\n"
-        }
+        json_query = "query submissions($offset: Int!, $limit: Int!, $lastKey: String, $questionSlug: String!, $markedOnly: Boolean, $lang: String) {\n  submissionList(offset: $offset, limit: $limit, lastKey: $lastKey, questionSlug: $questionSlug, markedOnly: $markedOnly, lang: $lang) {\n    lastKey\n    submissions {\n      id\n      statusDisplay\n      lang\n      timestamp\n      url\n    }\n  }\n}\n"
         if self.__debug_mode:  # grasp all the content in debug mode
-            param["query"] = "query submissions($offset: Int!, $limit: Int!, $lastKey: String, $questionSlug: String!, $markedOnly: Boolean, $lang: String) {\n  submissionList(offset: $offset, limit: $limit, lastKey: $lastKey, questionSlug: $questionSlug, markedOnly: $markedOnly, lang: $lang) {\n    lastKey\n    hasNext\n    submissions {\n      id\n      statusDisplay\n      lang\n      runtime\n      timestamp\n      url\n      isPending\n      memory\n      submissionComment {\n        comment\n        flagType\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"
+            json_query = "query submissions($offset: Int!, $limit: Int!, $lastKey: String, $questionSlug: String!, $markedOnly: Boolean, $lang: String) {\n  submissionList(offset: $offset, limit: $limit, lastKey: $lastKey, questionSlug: $questionSlug, markedOnly: $markedOnly, lang: $lang) {\n    lastKey\n    hasNext\n    submissions {\n      id\n      statusDisplay\n      lang\n      runtime\n      timestamp\n      url\n      isPending\n      memory\n      submissionComment {\n        comment\n        flagType\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"
+        param = self.__postHTTPJSONParam("submissions", {"offset":0, "limit":50, "lastKey":"null", "questionSlug": problem_info["url"]}, json_query)
 
         param_json = json.dumps(param).encode("utf-8")
         response = self.__client.post(self.__query_url, data=param_json, headers=headers)
@@ -248,15 +237,12 @@ class LeetCodeClient:
         latest_submission_id = submission_details[submission_idx]["id"]
         latest_submission_url = submission_details[submission_idx]["url"][1:]  # remove '/'
         latest_submission_url = self.__leetcode_url + latest_submission_url
-        headers = self.__postHTTPJSONHeader(referer=latest_submission_url)
+        headers = self.__postHTTPJSONHeader(Referer=latest_submission_url)
 
-        param = {
-            "operationName": "mySubmissionDetail",
-            "variables": {"id": latest_submission_id},
-            "query": "query mySubmissionDetail($id: ID!) {\n  submissionDetail(submissionId: $id) {\n    id\n    code\n    lang\n    question {\n      translatedTitle\n    }\n  }\n}\n"
-        }
+        json_query = "query mySubmissionDetail($id: ID!) {\n  submissionDetail(submissionId: $id) {\n    id\n    code\n    lang\n    question {\n      translatedTitle\n    }\n  }\n}\n"
         if self.__debug_mode:  # grasp all the content in debug mode
-            param["query"] = "query mySubmissionDetail($id: ID!) {\n  submissionDetail(submissionId: $id) {\n    id\n    code\n    runtime\n    memory\n    rawMemory\n    statusDisplay\n    timestamp\n    lang\n    passedTestCaseCnt\n    totalTestCaseCnt\n    sourceUrl\n    question {\n      titleSlug\n      title\n      translatedTitle\n      questionId\n      __typename\n    }\n    ... on GeneralSubmissionNode {\n      outputDetail {\n        codeOutput\n        expectedOutput\n        input\n        compileError\n        runtimeError\n        lastTestcase\n        __typename\n      }\n      __typename\n    }\n    submissionComment {\n      comment\n      flagType\n      __typename\n    }\n    __typename\n  }\n}\n"
+            json_query = "query mySubmissionDetail($id: ID!) {\n  submissionDetail(submissionId: $id) {\n    id\n    code\n    runtime\n    memory\n    rawMemory\n    statusDisplay\n    timestamp\n    lang\n    passedTestCaseCnt\n    totalTestCaseCnt\n    sourceUrl\n    question {\n      titleSlug\n      title\n      translatedTitle\n      questionId\n      __typename\n    }\n    ... on GeneralSubmissionNode {\n      outputDetail {\n        codeOutput\n        expectedOutput\n        input\n        compileError\n        runtimeError\n        lastTestcase\n        __typename\n      }\n      __typename\n    }\n    submissionComment {\n      comment\n      flagType\n      __typename\n    }\n    __typename\n  }\n}\n"
+        param = self.__postHTTPJSONParam("mySubmissionDetail", {"id": latest_submission_id}, json_query)
 
         # Post this query may be failed, so it will retry
         retry_times = self.__submission_retry_times
@@ -299,11 +285,18 @@ class LeetCodeClient:
         utils.saveListFile(file_path, file_name, book_name, valid_problems_info)
 
 
-    def __postHTTPJSONHeader(self, referer):
+    def __postHTTPJSONHeader(self, Referer):
         return {
             "Connection": "keep-alive",
             "Content-Type": "application/json",
-            "Referer": referer
+            "Referer": Referer
         }
-
+    
+    
+    def __postHTTPJSONParam(self, operationName, variables, query):
+        return {
+            "operationName": operationName,
+            "variables": variables,
+            "query": query
+        }
 

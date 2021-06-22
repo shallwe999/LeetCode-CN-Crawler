@@ -52,8 +52,8 @@ def saveListFile(file_path, file_name, book_name, problems_info):
             "    .table_list tr:nth-child(odd){ background-color: #dcecf9; }\n"+
             "    .table_list tr:nth-child(even){ background-color: #ffffff; }\n"+
             "</style>\n"+
-            "<h2>{:s} 题目与题解汇总</h2>\n".format(BOOK_TRANSFORM[book_name])+
-            "<table class=table_list>\n"+
+            "<h2 style=\"text-align:center;\">{:s} 题目与题解汇总</h2>\n".format(BOOK_TRANSFORM[book_name])+
+            "<table class=table_list align=\"center\">\n"+
             "<tr>\n"+
             "    <th>题目ID</th><th>题目名称</th><th>题目链接</th><th>题解链接</th>\n"+
             "</tr>\n")

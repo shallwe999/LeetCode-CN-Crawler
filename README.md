@@ -6,8 +6,8 @@
 
 - 名称: LeetCode CN Crawler
 - 作者: Shallwe
-- 日期: 2021/06/22
-- 当前版本: v1.0.2
+- 日期: 2021/06/23
+- 当前版本: v1.0.3
 - 说明: 由于工程适用于中国站，文档使用中文。
 
 - - - - - - -  
@@ -39,11 +39,15 @@ problems
 
 题目文件示例。
 
-<img src="./doc/demo_problem.jpg" width="50%" align="bottom" />
+<img src="./doc/demo_problem.jpg" width="40%" align="bottom" />
 
 代码文件示例。
 
-<img src="./doc/demo_solution.jpg" width="50%" align="bottom" />
+<img src="./doc/demo_solution.jpg" width="40%" align="bottom" />
+
+汇总文件示例。
+
+<img src="./doc/demo_summary.jpg" width="40%" align="bottom" />
 
 - - - - - - -  
 
@@ -97,6 +101,7 @@ python main.py -d       # debug模式，会输出和请求更多信息用于调�
 
 ### TODO
 
+- 题目添加标签。
 - 题目页面美化改进。
 - 题目里的图片仍为从服务器下载显示，需要改为本地。
 - 题库统计页面改进。
