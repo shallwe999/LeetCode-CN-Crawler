@@ -24,7 +24,8 @@ class LeetCodeClient:
 
         self.__client = requests.session()
         self.__client.encoding = "utf-8"
-        self.__problems_info = []  # {qid, title, url}
+        self.__problems_info = []  # {qid, title, url, grasped, 
+                                   # translated_title(if grasped), problem_file_name(if grasped), code_file_name(if grasped)}
         self.__account_name = None
         self.__signed_in = False
         self.__book_name = ""
@@ -57,11 +58,8 @@ class LeetCodeClient:
 
                 # Get account name, check if signed in.
                 # If not signed in, account name will not be received.
-                account_name_headers = {
-                    "Connection": "keep-alive",
-                    "Content-Type": "application/json",
-                    "Referer": self.__query_url
-                }
+                account_name_headers = self.__postHTTPJSONHeader(referer=self.__query_url)
+
                 account_name_param = {
                     "operationName": "userStatus",
                     "variables": {},
@@ -112,7 +110,7 @@ class LeetCodeClient:
         self.__getProblemsList()
         length = len(self.__problems_info)
         if length == 0:
-            print(" >> No AC solutions found.")
+            print(" >> No AC submissions found.")
             print(" >> Grasp BOOK [{:s}] finished.".format(self.__book_name))
             return
 
@@ -123,8 +121,13 @@ class LeetCodeClient:
                 # Skip grasping this problem if found
                 if not self.__force_mode:
                     file_path = os.path.join(self.__save_path, self.__book_name, problem_info["qid"])
-                    check_existed = len(glob.glob("{:s} - *".format(file_path)))
+                    check_file_paths = glob.glob("{:s} - *".format(file_path))
+                    check_existed = len(check_file_paths)
                     if check_existed != 0:
+                        # get translated_title and save to problem info
+                        title_start_idx = check_file_paths[0].find("{:s} - ".format(file_path)) + len(file_path) + 3
+                        problem_info["translated_title"] = check_file_paths[0][title_start_idx:]
+                        problem_info["grasped"] = True
                         print(" >> Problem [{:s}] has been grasped, skip it.".format(problem_info["title"]))
                         continue
 
@@ -137,6 +140,7 @@ class LeetCodeClient:
                     print(" >> Problem [{:s}] grasp failed, skip it.".format(problem_info["title"]))
                     continue
                 self.__getProblemDiscription(problem_info)
+                problem_info["grasped"] = True
         else:
             tqdm_desc = "BOOK {:s}".format(self.__book_name)
             with tqdm(total=len(self.__problems_info), ncols=80, desc=tqdm_desc, 
@@ -145,8 +149,13 @@ class LeetCodeClient:
                     # Skip grasping this problem if found
                     if not self.__force_mode:
                         file_path = os.path.join(self.__save_path, self.__book_name, problem_info["qid"])
-                        check_existed = len(glob.glob("{:s} - *".format(file_path)))
+                        check_file_paths = glob.glob("{:s} - *".format(file_path))
+                        check_existed = len(check_file_paths)
                         if check_existed != 0:
+                            # get translated_title and save to problem info
+                            title_start_idx = check_file_paths[0].find("{:s} - ".format(file_path)) + len(file_path) + 3
+                            problem_info["translated_title"] = check_file_paths[0][title_start_idx:]
+                            problem_info["grasped"] = True
                             pbar.update(1)
                             continue
 
@@ -156,7 +165,10 @@ class LeetCodeClient:
                         pbar.update(1)
                         continue
                     self.__getProblemDiscription(problem_info)
+                    problem_info["grasped"] = True
                     pbar.update(1)
+
+        self.__generateListFile(book_name)
 
         print(" >> Grasp BOOK [{:s}] finished.".format(self.__book_name))
 
@@ -171,18 +183,16 @@ class LeetCodeClient:
             if problem["status"] == "ac":  # only collect AC problems
                 self.__problems_info.append({"qid": problem["stat"]["frontend_question_id"],
                                              "title": problem["stat"]["question__title"],
-                                             "url": problem["stat"]["question__title_slug"]})
+                                             "url": problem["stat"]["question__title_slug"],
+                                             "grasped": False})
 
         print(" >> Get BOOK [{:s}] list successfully. Collect {:d} problems.".format(self.__book_name, len(self.__problems_info)))
 
 
     def __getProblemDiscription(self, problem_info):
         this_problem_url = self.__problem_url + problem_info["url"] + "/"
-        headers = {
-            "Connection": "keep-alive",
-            "Content-Type": "application/json",
-            "Referer": this_problem_url
-        }
+        headers = self.__postHTTPJSONHeader(referer=this_problem_url)
+
         param = {
             "operationName": "questionData",
             "variables": {"titleSlug": problem_info["url"]},
@@ -196,10 +206,11 @@ class LeetCodeClient:
         problem_details = response.json()["data"]["question"]
         difficulty = problem_details["difficulty"]
 
-        file_name = problem_details["translatedTitle"]
-        problem_name = "{:s} - {:s}".format(problem_info["qid"], file_name)
+        translated_title = problem_details["translatedTitle"]
+        problem_info["translated_title"] = translated_title  # save to problem info
+        problem_name = "{:s} - {:s}".format(problem_info["qid"], translated_title)
         file_path = os.path.join(self.__save_path, self.__book_name, problem_name)
-        utils.saveProblemFile(file_path, file_name, problem_name, difficulty, problem_details["translatedContent"])
+        utils.saveProblemFile(file_path, translated_title, problem_name, difficulty, problem_details["translatedContent"])
 
         if self.__debug_mode:
             print(" >> Get problem [{:s}] discription.".format(problem_info["title"]))
@@ -208,11 +219,8 @@ class LeetCodeClient:
 
     def __getLatestACSubmission(self, problem_info):
         this_problem_url = self.__problem_url + problem_info["url"] + "submissions/"
-        headers = {
-            "Connection": "keep-alive",
-            "Content-Type": "application/json",
-            "Referer": this_problem_url
-        }
+        headers = self.__postHTTPJSONHeader(referer=this_problem_url)
+
         param = {
             "operationName": "submissions",
             "variables": {"offset":0, "limit":50, "lastKey":"null", "questionSlug": problem_info["url"]},
@@ -240,11 +248,8 @@ class LeetCodeClient:
         latest_submission_id = submission_details[submission_idx]["id"]
         latest_submission_url = submission_details[submission_idx]["url"][1:]  # remove '/'
         latest_submission_url = self.__leetcode_url + latest_submission_url
-        headers = {
-            "Connection": "keep-alive",
-            "Content-Type": "application/json",
-            "Referer": latest_submission_url
-        }
+        headers = self.__postHTTPJSONHeader(referer=latest_submission_url)
+
         param = {
             "operationName": "mySubmissionDetail",
             "variables": {"id": latest_submission_id},
@@ -281,5 +286,24 @@ class LeetCodeClient:
             print(" >> Get problem [{:s}] latest AC submission.".format(problem_info["title"]))
         return True
 
+
+    def __generateListFile(self, book_name):
+        file_path = os.path.join(self.__save_path, book_name)
+        file_name = "题目与题解汇总"
+
+        valid_problems_info = []
+        for problem_info in self.__problems_info:
+            if problem_info["grasped"]:
+                valid_problems_info.append(problem_info)
+
+        utils.saveListFile(file_path, file_name, book_name, valid_problems_info)
+
+
+    def __postHTTPJSONHeader(self, referer):
+        return {
+            "Connection": "keep-alive",
+            "Content-Type": "application/json",
+            "Referer": referer
+        }
 
 
